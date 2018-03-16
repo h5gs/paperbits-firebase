@@ -57,28 +57,31 @@ export class FirebaseObjectStorage implements IObjectStorage {
         }
     }
 
-    public async searchObjects<T>(path: string, propertyNames?: Array<string>, searchValue?: string, startAtSearch?: boolean): Promise<Array<T>> {
+    public async searchObjects<T>(pattern: string, options?: Object): Promise<Array<T>> {
+        const path = options["area"];
+        const propertyNames = options["properties"];
+
         try {
-            let databaseRef = await this.firebaseService.getDatabaseRef();
-            let pathRef = databaseRef.child(path);
+            const databaseRef = await this.firebaseService.getDatabaseRef();
+            const pathRef = databaseRef.child(path);
 
-            if (propertyNames && propertyNames.length && searchValue) {
-                var searchPromises = propertyNames.map(async (propertyName) => {
-                    let query: firebase.database.Query = startAtSearch
-                        ? pathRef.orderByChild(propertyName).startAt(searchValue)
-                        : pathRef.orderByChild(propertyName).equalTo(searchValue);
+            if (propertyNames && propertyNames.length && pattern) {
+                const searchPromises = propertyNames.map(async (propertyName) => {
+                    const query = pathRef.orderByChild(propertyName).startAt(pattern)
+                    const result = await query.once("value");
 
-                    let result = await query.once("value");
                     return this.collectResult(result);
                 });
 
-                let searchTaskResults = await Promise.all(searchPromises);
+                const searchTaskResults = await Promise.all<any>(searchPromises);
+
                 return _.flatten(searchTaskResults);
             }
             else {
                 //return all objects
-                let objectData = await pathRef.once("value");
-                let result = this.collectResult(objectData);
+                const objectData = await pathRef.once("value");
+                const result = this.collectResult(objectData);
+
                 return result;
             }
         }
